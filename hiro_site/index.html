@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hi:ro</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --text: #111;
+    --accent: #111;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  #brand {
+    position: fixed;
+    top: 28px; left: 32px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    z-index: 100;
+    mix-blend-mode: multiply;
+  }
+
+  /* ── SOCIAL LINKS ── */
+  #links {
+    position: fixed;
+    left: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  #links a {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    text-decoration: none;
+    text-transform: lowercase;
+    opacity: 0.85;
+    transition: opacity 0.2s, letter-spacing 0.2s;
+    position: relative;
+  }
+
+  #links a::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: -2px;
+    width: 0; height: 1px;
+    background: var(--text);
+    transition: width 0.25s ease;
+  }
+
+  #links a:hover { opacity: 1; letter-spacing: 0.06em; }
+  #links a:hover::after { width: 100%; }
+
+  /* ── EMAIL ── */
+  #email {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    letter-spacing: 0.2em;
+    opacity: 0.6;
+    z-index: 100;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 200;
+  }
+
+  /* ── CANVAS ── */
+  #sphere-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── NOW PLAYING ── */
+  #now-playing {
+    position: fixed;
+    bottom: 28px;
+    right: 32px;
+    font-size: 15px;
+    letter-spacing: 0.15em;
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 100;
+    text-align: right;
+  }
+
+  #now-playing.visible { opacity: 0.7; }
+  #now-playing span { display: block; font-size: 24px; font-weight: 700; opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="brand">hi:ro</div>
+
+<div id="links">
+  <a href="https://www.youtube.com/@1hiro7/videos" target="_blank">youtube</a>
+  <a href="https://www.beatstars.com/1hiro7o" target="_blank">beatstars</a>
+  <a href="https://soundcloud.com/1hiro7o" target="_blank">soundcloud</a>
+  <a href="https://www.instagram.com/1hiro7o/" target="_blank">instagram</a>
+  <a href="https://open.spotify.com/artist/7uFZ38MDDJOwKhMeuAK0JG" target="_blank">spotify</a>
+  <a href="https://discord.com/invite/5uyKw9kfVF" target="_blank">discord</a>
+  <a href="https://x.com/1hiro7o" target="_blank">twitter</a>
+</div>
+
+<div id="email">me@1hiro.com</div>
+
+<div id="now-playing">now playing<span id="track-name"></span></div>
+
+<canvas id="sphere-canvas"></canvas>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const TRACKS = [
+  { id: 'explosion',       img: 'assets/explosion.png',       audio: 'assets/explosion.mp3',       label: 'explosion!' },
+  { id: 'oneday',          img: 'assets/oneday.png',          audio: 'assets/oneday.mp3',           label: 'oneday' },
+  { id: 'ushouldknowthis', img: 'assets/ushouldknowthis.png', audio: 'assets/ushouldknowthis.wav',  label: 'ushouldknowthis' },
+  { id: 'never',           img: 'assets/never.png',           audio: 'assets/never.mp3',            label: 'never' },
+  { id: 'resurgence',      img: 'assets/resurgence.png',      audio: 'assets/resurgence.mp3',       label: 'resurgence' },
+  { id: 'scenario',        img: 'assets/scenario.png',        audio: 'assets/scenario.mp3',         label: 'scenario' },
+  { id: 'urlove',          img: 'assets/urlove.png',          audio: 'assets/urlove.mp3',           label: 'urlove' },
+  { id: 'bf',              img: 'assets/bf.jpeg',             audio: 'assets/bf.mp3',               label: 'bf' },
+  { id: 'u',               img: 'assets/u.png',               audio: 'assets/u.mp3',                label: 'u' },
+  { id: 'boom',            img: 'assets/boom.png',            audio: 'assets/boom.mp3',             label: 'boom' },
+  { id: 'stay',            img: 'assets/stay.png',            audio: 'assets/stay.mp3',             label: 'stay' },
+];
+
+// ── SETUP ─────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('sphere-canvas');
+const ctx = canvas.getContext('2d');
+const nowPlaying = document.getElementById('now-playing');
+const trackName = document.getElementById('track-name');
+
+let W, H, CX, CY;
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  CX = W / 2;
+  CY = H / 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── MOUSE & WINDOW STATE TRACKING ─────────────────────────────────────────
+let mouse = { x: W / 2, y: H / 2 };
+let isMouseOnScreen = true;
+
+window.addEventListener('mousemove', e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+
+document.body.addEventListener('mouseleave', () => { isMouseOnScreen = false; });
+document.body.addEventListener('mouseenter', () => { isMouseOnScreen = true; });
+
+// ── LINK HOVER FREEZE ──
+let isHoveringLink = false;
+document.querySelectorAll('#links a').forEach(link => {
+  link.addEventListener('mouseenter', () => { isHoveringLink = true; });
+  link.addEventListener('mouseleave', () => { isHoveringLink = false; });
+});
+
+// ── GLOBAL AUTOPLAY UNBLOCKER ──
+window.addEventListener('click', () => {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  if (context.state === 'suspended') context.resume();
+}, { once: true });
+
+// ── LOAD IMAGES ───────────────────────────────────────────────────────────
+const loadedImgs = {};
+let loadCount = 0;
+TRACKS.forEach(t => {
+  const img = new Image();
+  img.onload = () => { loadedImgs[t.id] = img; loadCount++; };
+  img.src = t.img;
+});
+
+// ── AUDIO ─────────────────────────────────────────────────────────────────
+let currentAudio = null;
+let currentTrackId = null;
+
+function playTrack(track) {
+  if (!track.audio) return;
+  if (currentTrackId === track.id) return;
+
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+  }
+
+  const audio = new Audio(track.audio);
+  audio.volume = 0;
+  audio.play().catch(() => {});
+
+  // Fade in
+  let vol = 0;
+  const fadeIn = setInterval(() => {
+    vol = Math.min(vol + 0.05, 0.85);
+    audio.volume = vol;
+    if (vol >= 0.85) clearInterval(fadeIn);
+  }, 50);
+
+  currentAudio = audio;
+  currentTrackId = track.id;
+
+  trackName.textContent = track.label;
+  nowPlaying.classList.add('visible');
+}
+
+function stopAudio() {
+  if (!currentAudio) return;
+  const audio = currentAudio;
+  let vol = audio.volume;
+  const fadeOut = setInterval(() => {
+    vol = Math.max(vol - 0.06, 0);
+    audio.volume = vol;
+    if (vol <= 0) {
+      clearInterval(fadeOut);
+      audio.pause();
+    }
+  }, 40);
+  currentAudio = null;
+  currentTrackId = null;
+  nowPlaying.classList.remove('visible');
+}
+
+// ── SPHERE POINTS ─────────────────────────────────────────────────────────
+function fibonacciSphere(n, radius) {
+  const pts = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const theta = golden * i;
+    pts.push({
+      x: Math.cos(theta) * r * radius,
+      y: y * radius,
+      z: Math.sin(theta) * r * radius,
+    });
+  }
+  return pts;
+}
+
+const N = TRACKS.length;
+const basePts = fibonacciSphere(N, 1);
+
+// ── ROTATION STATE ─────────────────────────────────────────────────────────
+let rotX = 0.3, rotY = 0;
+let velX = 0, velY = 0;
+let isDragging = false;
+let lastMX = 0, lastMY = 0;
+
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  lastMX = e.clientX;
+  lastMY = e.clientY;
+});
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - lastMX;
+  const dy = e.clientY - lastMY;
+  velY += dx * 0.008;
+  velX += dy * 0.008;
+  lastMX = e.clientX;
+  lastMY = e.clientY;
+});
+
+// ── 3D MATH ───────────────────────────────────────────────────────────────
+function rotateY(p, a) {
+  const cos = Math.cos(a), sin = Math.sin(a);
+  return { x: p.x * cos - p.z * sin, y: p.y, z: p.x * sin + p.z * cos };
+}
+function rotateX(p, a) {
+  const cos = Math.cos(a), sin = Math.sin(a);
+  return { x: p.x, y: p.y * cos - p.z * sin, z: p.y * sin + p.z * cos };
+}
+
+// ── HOVERED TILE CONFIG ───────────────────────────────────────────────────
+let hoveredIdx = -1;
+let hoverScale = new Array(N).fill(1);
+const BASE_SIZE = 110;   
+const HOVER_SIZE = 180;  
+
+// ── RENDER LOOP ───────────────────────────────────────────────────────────
+let lastTime = 0;
+function frame(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  const radius = Math.min(W, H) * 0.28;
+  const dx = mouse.x - CX;
+  const dy = mouse.y - CY;
+  const mouseDist = Math.sqrt(dx * dx + dy * dy);
+
+  // Rotation behavior handling
+  if (!isMouseOnScreen || isHoveringLink) {
+    velX = 0;
+    velY = 0;
+  } else if (isDragging) {
+    velX *= 0.88;
+    velY *= 0.88;
+  } else if (mouseDist > radius) {
+    // Fixed: Map velocity directly and invert vertical speed to shift away from corner traps
+    velY = dx * 0.0003;
+    velX = -dy * 0.0003;
+  } else {
+    velX = 0;
+    velY = 0;
+  }
+
+  rotX += velX * dt * 60;
+  rotY += velY * dt * 60;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Transform all points
+  const projected = basePts.map((p, i) => {
+    let pt = { x: p.x * radius, y: p.y * radius, z: p.z * radius };
+    pt = rotateX(pt, rotX);
+    pt = rotateY(pt, rotY);
+
+    const fov = 900;
+    const scale = fov / (fov - pt.z);
+    const sx = CX + pt.x * scale;
+    const sy = CY + pt.y * scale;
+    const depth = (pt.z + radius) / (2 * radius);
+
+    return { sx, sy, depth, z: pt.z, scale, idx: i };
+  });
+
+  // Sort back-to-front
+  projected.sort((a, b) => a.z - b.z);
+
+  // Hit detection
+  let newHovered = -1;
+  let minDist = Infinity;
+  for (const p of projected) {
+    const track = TRACKS[p.idx];
+    const img = loadedImgs[track.id];
+    if (!img) continue;
+    const s = hoverScale[p.idx];
+    const tileSize = BASE_SIZE * p.scale * s;
+    const dxTile = mouse.x - p.sx;
+    const dyTile = mouse.y - p.sy;
+    const dist = Math.sqrt(dxTile * dxTile + dyTile * dyTile);
+    if (dist < tileSize / 2 && dist < minDist) {
+      minDist = dist;
+      newHovered = p.idx;
+    }
+  }
+
+  // Audio activation checks
+  if (newHovered !== hoveredIdx) {
+    hoveredIdx = newHovered;
+    if (hoveredIdx === -1) {
+      stopAudio();
+    } else {
+      playTrack(TRACKS[hoveredIdx]);
+    }
+  }
+
+  // Animate hover scales
+  for (let i = 0; i < N; i++) {
+    const target = i === hoveredIdx ? HOVER_SIZE / BASE_SIZE : 1;
+    hoverScale[i] += (target - hoverScale[i]) * 0.12;
+  }
+
+  // Draw tiles
+  for (const p of projected) {
+    const track = TRACKS[p.idx];
+    const img = loadedImgs[track.id];
+    if (!img) continue;
+
+    const s = hoverScale[p.idx];
+    const tileSize = BASE_SIZE * p.scale * s;
+    const alpha = 0.35 + 0.65 * ((p.z / radius) * 0.5 + 0.5);
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.2, Math.min(1, alpha));
+    ctx.translate(p.sx, p.sy);
+
+    if (p.idx === hoveredIdx) {
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 20;
+    }
+
+    ctx.drawImage(img, -tileSize / 2, -tileSize / 2, tileSize, tileSize);
+    ctx.restore();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
